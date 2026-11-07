@@ -1,144 +1,118 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-from __future__ import (division, print_function, absolute_import,
-                        unicode_literals)
 
 import sys
 import argparse
 import random
 from datetime import datetime, date
 
-
 def valid_date(s):
+    """Validates the input date format YYYY-MM-DD."""
     try:
-        return datetime.strptime(s, "%Y-%m-%d")
+        return datetime.strptime(s, "%Y-%m-%d").date()
     except ValueError:
-        msg = "Not a valid date: '{0}'.".format(s)
+        msg = f"Not a valid date: '{s}'. Please use YYYY-MM-DD."
         raise argparse.ArgumentTypeError(msg)
 
+def print_age_info(agedays, expect, lifetime):
+    """Print age and longevity information with clean formatting."""
+    print('\n' + '='*30)
+    print(f"AGE STATUS:")
+    print(f"  You are {agedays / 365.25:,.2f} years old")
+    print(f"  You are {agedays / 30.44:,.2f} months old")
+    print(f"  You are {agedays / 7.0:,.2f} weeks old")
+    print(f"  You are {agedays:,} days old")
+    
+    print('\nEXPECTED LIFETIME:')
+    print(f"  Approx. {expect / 365.25:,.2f} years")
+    print(f"  Approx. {expect / 30.44:,.2f} months")
+    print(f"  Approx. {expect / 7.0:,.2f} weeks")
+    print(f"  Approx. {expect:,.0f} days")
+    
+    print('\nPROBABILITY:')
+    # Calculate percentages safely
+    percent_dead = (agedays / lifetime) * 100
+    percent_alive = (expect / lifetime) * 100
+    print(f"  You are approximately {percent_dead:.1f}% dead")
+    print(f"  You are approximately {percent_alive:.1f}% alive")
+    print('='*30 + '\n')
 
-def int_range(min=None, max=None):
-    def check_range(x):
-        x = int(x)
-
-        if x < min and min is not None:
-            raise argparse.ArgumentTypeError("%r not in range [%r, %r]" % (x, min, max))
-
-        if x > max and max is not None:
-            raise argparse.ArgumentTypeError("%r not in range [%r, %r]" % (x, min, max))
-
-        return x
-
-    return check_range
-
-
-def printAgeInfo(agedays, expect, lifetime):
-    '''
-    Print age and longevity information
-    '''
-
-    print('')
-    print("You are", '{:0,.2f}'.format(agedays / 365.25), "years old")   #  10 years
-    print("You are", '{:0,.2f}'.format(agedays / 30.41),  "months old")  #  50 months
-    print("You are", '{:0,.2f}'.format(agedays / 7.0),    "weeks old")   # 100 weeks
-    print("You are", '{:0,d}'.format(agedays),            "days old")    # 500 days
-    print('')
-    print("You can expect to live approximately", '{:0,.2f}'.format(expect / 365.25), "years")
-    print("You can expect to live approximately", '{:0,.2f}'.format(expect / 30.41),  "months")
-    print("You can expect to live approximately", '{:0,.2f}'.format(expect / 7.0),    "weeks")
-    print("You can expect to live approximately", '{:0,.0f}'.format(expect),          "days")
-    print('')
-    print("You are approximately %.1f %% dead"  % (agedays * 100.0 / lifetime))
-    print("You are approximately %.1f %% alive" % (expect * 100.0 / lifetime))
-    print('')
-
-
-# NOTE These are UK-specific lifetime estimates from the Office for National Statistics
-# https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/lifeexpectancies/bulletins/nationallifetablesunitedkingdom/2016to2018
-# What are error bars on these estimates?
-# These estimates are updated every 3 years
 def get_lifetime(args):
-    '''
-    Get lifetime based on gender (from https://www.ons.gov.uk/)
-    '''
-
-    lifetime = 0
-
-    if args.lifetime == 0:
-        sex = args.sex
-        if sex.upper() == 'M':
-            lifetime = 79.3 * 365.25
-        elif sex.upper() == 'F':
-            lifetime = 82.9 * 365.25
+    """Get lifetime in days based on sex or provided value."""
+    # FIX: Check if lifetime is not None before comparing to 0
+    if args.lifetime is not None and args.lifetime > 0:
+        return args.lifetime * 365.25
+    
+    # Default UK ONS estimates if no lifetime is provided
+    sex = args.sex.upper() if args.sex else None
+    if sex == 'M':
+        return 79.3 * 365.25
+    elif sex == 'F':
+        return 82.9 * 365.25
     else:
-        lifetime = args.lifetime * 365.25
-
-    return lifetime
-
+        # Default to average (approx 81 years) if sex is not provided/recognized
+        return 81.1 * 365.25
 
 def main(args):
-    day     = args.birthdate.day
-    month   = args.birthdate.month
-    year    = args.birthdate.year
-    verbose = args.verbose
-
     try:
-        birthday = date(year, month, day)
+        birthday = args.birthdate
+        today = date.today()
+        
+        if birthday > today:
+            print(f"ERROR: Birthdate {birthday} cannot be in the future.")
+            sys.exit(1)
+        if birthday.year < 1900:
+            print(f"ERROR: Birthdate {birthday.year} is before the supported range (1900).")
+            sys.exit(1)
 
-        now = date.today()
-        age = now - birthday
+        age_delta = today - birthday
+        agedays = age_delta.days
+        lifetime_days = get_lifetime(args)
+        expect_days = lifetime_days - agedays
 
-        lifetime = get_lifetime(args)
-        expect   = lifetime - age.days
+        # Logic for triggering the print (Verbose OR specific intervals OR random chance)
+        is_anniversary = (
+            agedays % 365 == 0 or      # Yearly anniversary
+            agedays % 1825 == 0 or     # 5-year milestone
+            agedays % 3652 == 0 or     # 10-year milestone
+            random.randint(1, 365) == 365 # Random chance (approx once a year)
+        )
 
-        if ( verbose or                                     # print results if verbose is true or
-             age.days % 500  == 0 or expect % 500  == 0 or  # 500 days
-             age.days % 700  == 0 or expect % 700  == 0 or  # 100 weeks
-             age.days % 1521 == 0 or expect % 1521 == 0 or  #  50 months
-             (age.days * 10 % 3652) / 10 == 0 or (expect * 10 % 3652) / 10 == 0 or  # 10 years
-             (age.days * 100 / lifetime) % 10 == 0 or          # 10, 20, ... % of lifetime
-             random.randint(1, 366) == 365                 ):  # print results approx once per year
-            printAgeInfo(age.days, expect, lifetime)
+        if args.verbose or is_anniversary:
+            print_age_info(agedays, expect_days, lifetime_days)
+        else:
+            # If not an anniversary and not verbose, just show a reminder
+            print("Memento Mori... (Run with -v to see details)")
 
-    except ValueError:
-        err = sys.exc_info()[1]
-        print(err.args[0])
-
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-            description="Memento mori - Remmeber death https://github.com/makeyourownmaker/ParametricWeatherModel")
+        description="Memento mori - Remember death. A tool for life expectancy reflection."
+    )
+    
+    # Required Arguments
     required = parser.add_argument_group('required arguments')
     required.add_argument('-b', '--birthdate',
-            help='Date of birth - format YYYY-MM-DD',
+            help='Date of birth (YYYY-MM-DD)',
             required=True, type=valid_date)
 
+    # Mutually Exclusive Group
     mutex = parser.add_mutually_exclusive_group()
     mutex.add_argument('-s', '--sex',
-            help='Sex (m or M for male and f or F for female)',
-            nargs='?', type=str, choices=['m', 'M', 'f', 'F'])
+            help='Sex (m/M for male, f/F for female)',
+            type=str, choices=['m', 'M', 'f', 'F'])
     mutex.add_argument('-l', '--lifetime',
-            help='Expected lifetime in years - default=%(default)s',
-            nargs='?', default=0, type=float, metavar='[1, 100]', choices=range(1, 101))
+            help='Expected lifetime in years (1-100)',
+            type=float, metavar='[1-100]')
 
-    optional = parser._action_groups.pop()
-    optional.add_argument('-v',  '--verbose',
-            help='Print additional information - default=%(default)s',
-            default=True, action="store_false")
+    # Optional Arguments
+    optional = parser.add_argument_group('optional arguments')
+    optional.add_argument('-v', '--verbose',
+            help='Print detailed information immediately',
+            action="store_true")
 
-    parser._action_groups.append(optional)
     args = parser.parse_args()
-
-    if args.birthdate.date() > date.today():
-        print("ERROR: 'birthdate' cannot be in the future")
-        print("ERROR: 'birthdate' %s" % args.birthdate.date())
-        print("ERROR: 'today' " + str(date.today()))
-        exit()
-
-    if args.birthdate.year < 1900:
-        print("ERROR: 'birthdate' cannot before 1900")
-        print("ERROR: 'birthdate' %s" % args.birthdate.date())
-        exit()
-
     main(args)
