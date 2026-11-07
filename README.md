@@ -16,7 +16,7 @@ If you like mementomori, give it a star, or fork it and contribute!
 
 Age details and life expectancy estimates for _male_ born on 8th January 1992:
 ```sh
-./mementomori -s m -b 1992-01-08
+./mementomori -s m -b 1992-01-08 -v
 
 You are 27.36 years old
 You are 328.67 months old
@@ -34,7 +34,7 @@ You are approximately 65.4 % alive
 
 Age details and life expectancy estimates for _female_ born on 8th January 1992:
 ```sh
-./mementomori -s f -b 1992-01-08
+./mementomori -s f -b 1992-01-08 -v
 
 You are 27.36 years old
 You are 328.67 months old
@@ -60,7 +60,7 @@ Both python versions 2 and 3 are supported.
 
 The following should work on any unix-ish environment:
 ```sh
-wget https://raw.githubusercontent.com/makeyourownmaker/mementomori/master/mementomori
+wget https://raw.githubusercontent.com/czar/mori-kernel/master/mementomori
 chmod u+x mementomori
 ./mementomori -h
 ```
